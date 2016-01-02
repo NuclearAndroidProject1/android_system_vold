@@ -8,8 +8,10 @@ common_src_files := \
 	NetlinkManager.cpp \
 	NetlinkHandler.cpp \
 	Process.cpp \
+	fs/Exfat.cpp \
 	fs/Ext4.cpp \
 	fs/F2fs.cpp \
+	fs/Ntfs.cpp \
 	fs/Vfat.cpp \
 	Loop.cpp \
 	Devmapper.cpp \
@@ -53,16 +55,23 @@ common_shared_libraries := \
 	libhardware \
 	libsoftkeymaster \
 	libbase \
+    libext2_blkid
 
 common_static_libraries := \
 	libfs_mgr \
 	libsquashfs_utils \
 	libscrypt_static \
 	libmincrypt \
-	libbatteryservice
+	libbatteryservice \
+    libext2_blkid \
+    libext2_uuid_static
 
 vold_conlyflags := -std=c11
 vold_cflags := -Werror -Wall -Wno-missing-field-initializers -Wno-unused-variable -Wno-unused-parameter
+
+ifeq ($(TARGET_KERNEL_HAVE_EXFAT),true)
+vold_cflags += -DCONFIG_KERNEL_HAVE_EXFAT
+endif
 
 include $(CLEAR_VARS)
 
@@ -93,6 +102,7 @@ LOCAL_CFLAGS := $(vold_cflags)
 LOCAL_CONLYFLAGS := $(vold_conlyflags)
 
 ifeq ($(TARGET_HW_DISK_ENCRYPTION),true)
+TARGET_CRYPTFS_HW_PATH ?= device/qcom/common/cryptfs_hw
 LOCAL_C_INCLUDES += $(TARGET_CRYPTFS_HW_PATH)
 common_shared_libraries += libcryptfs_hw
 LOCAL_CFLAGS += -DCONFIG_HW_DISK_ENCRYPTION
@@ -109,6 +119,18 @@ LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 LOCAL_CLANG := true
 LOCAL_SRC_FILES:= vdc.c
 LOCAL_MODULE:= vdc
+LOCAL_SHARED_LIBRARIES := libcutils
+LOCAL_CFLAGS := $(vold_cflags)
+LOCAL_CONLYFLAGS := $(vold_conlyflags)
+
+include $(BUILD_EXECUTABLE)
+
+include $(CLEAR_VARS)
+
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
+LOCAL_CLANG := true
+LOCAL_SRC_FILES:= secdiscard.cpp
+LOCAL_MODULE:= secdiscard
 LOCAL_SHARED_LIBRARIES := libcutils
 LOCAL_CFLAGS := $(vold_cflags)
 LOCAL_CONLYFLAGS := $(vold_conlyflags)

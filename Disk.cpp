@@ -295,9 +295,11 @@ status_t Disk::readPartitions() {
 
                 switch (strtol(type, nullptr, 16)) {
                 case 0x06: // FAT16
+                case 0x07: // NTFS/exFAT
                 case 0x0b: // W95 FAT32 (LBA)
                 case 0x0c: // W95 FAT32 (LBA)
                 case 0x0e: // W95 FAT16 (LBA)
+                case 0x83: // Linux EXT4/F2FS/...
                     createPublicVolume(partDevice);
                     break;
                 }
@@ -340,9 +342,23 @@ status_t Disk::unmountAll() {
 }
 
 status_t Disk::partitionPublic() {
+    int res;
+
     // TODO: improve this code
     destroyAllVolumes();
     mJustPartitioned = true;
+
+    // First nuke any existing partition table
+    std::vector<std::string> cmd;
+    cmd.push_back(kSgdiskPath);
+    cmd.push_back("--zap-all");
+    cmd.push_back(mDevPath);
+
+    // Zap sometimes returns an error when it actually succeeded, so
+    // just log as warning and keep rolling forward.
+    if ((res = ForkExecvp(cmd)) != 0) {
+        LOG(WARNING) << "Failed to zap; status " << res;
+    }
 
     struct disk_info dinfo;
     memset(&dinfo, 0, sizeof(dinfo));
